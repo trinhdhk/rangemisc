@@ -1,0 +1,27 @@
+Package: rangemisc
+Type: Package
+Title: Provide several helpers to deal with co-events/time.
+Version: 0.1.0
+Author: Trinh Dong Huu Khanh
+Maintainer@R: 
+    c(
+        person(
+            given = "Huu Khanh Trinh",
+            family = "Dong"
+            role = "maintainer",
+            email = "trindhk@oucru.org"),
+        person(
+            given = 'Biostatistic Group',
+            role = "maintainer"
+        )
+     )
+Description: Provide helpers to join overlapped ranges/interval, summary of 2 events.
+License: The MIT License (MIT)
+Encoding: UTF-8
+LazyData: true
+Imports:
+  C306
+Depends:
+  data.table,
+  dplyr
+RoxygenNote: 7.0.2
