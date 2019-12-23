@@ -23,24 +23,23 @@ overlap_collapse(x, ...)
 \method{overlap_collapse}{numeric}(x, y, method = c("outer", "inner", "left", "right"))
 }
 \arguments{
-\item{x}{a numeric vector specifying the one border of a range}
+\item{x, y}{a numeric vector specifying the two borders of each range}
 
 \item{.data}{a data.frame, tbl, or grouped_df. If grouped, collapsing will be performed by group.}
 
-\item{range_cols}{unquoted column names that specify the beginning and stopping of the range}
+\item{range_cols}{unquoted column names that specify the beginning and stopping of the range, wrapped in dplyr::vars()}
 
 \item{method}{a string, either:
 
 - outer: the collapsed range is the widest one
+
 - inner: the collapsed range is the closest one
+
 - left: the collapsed range is skew to the left
+
 - right: the collapsed range is skew to the right}
 
-\item{start}{start of a period}
-
-\item{end}{end of a period}
-
-\item{y}{a numeric vector specifying the other border of a range}
+\item{start, end}{start and end of a period}
 }
 \value{
 For data.frame method: a tbl or a grouped_df

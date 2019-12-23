@@ -123,7 +123,7 @@ overlap_summary <- function(x, y, by, sstable = FALSE, flextable = FALSE)
   summary_vars.y <- intersect(include.y[1:(length(by) - 2)], names(y))
   summary_vars <- union(summary_vars.x, summary_vars.y)
 
-  joining_by <- by[by != union(setdiff(summary_vars.x, summary_vars.y), setdiff(summary_vars.y, summary_vars.x))]
+  joining_by <- by[!by %in% union(setdiff(summary_vars.x, summary_vars.y), setdiff(summary_vars.y, summary_vars.x))]
   by.x <- ifelse(names(joining_by) == '', joining_by, names(joining_by))
   by.y <- unname(joining_by)
 
@@ -147,34 +147,71 @@ overlap_summary <- function(x, y, by, sstable = FALSE, flextable = FALSE)
 
   x_collapsed <- x %>%
     dplyr::group_by_at(dplyr::vars(!!!{{summary_vars.x}})) %>%
-    overlap_collapse(range_cols = c({{time_start.x}}, {{time_end.x}})) %>%
+    overlap_collapse(range_cols = vars(!!rlang::sym(time_start.x), !!rlang::sym(time_end.x))) %>%
     ungroup()
   y_collapsed <- y %>%
     dplyr::group_by_at(dplyr::vars(!!!{{summary_vars.y}})) %>%
-    overlap_collapse(range_cols = c({{time_start.y}}, {{time_end.y}})) %>%
+    overlap_collapse(range_cols = vars(!!rlang::sym(time_start.y), !!rlang::sym(time_end.y))) %>%
     ungroup()
 
   join_tbl <-
-    overlap_join(x_collapsed, y_collapsed, by = joining_by, type = 'full', overlap = 'any', multiple_match = 'all')
-
-  # browser()
-  not_is.na <- function(x) !is.na(x)
-  summary_tbl <-
-    join_tbl %>%
+    overlap_join(x_collapsed, y_collapsed, by = joining_by, type = 'full', overlap = 'any', multiple_match = 'all') %>%
     dplyr::mutate(
-      .x_y_start = pmax(join_tbl[[time_start.x]], join_tbl[[time_start.y]]),
-      .x_y_end = pmin(join_tbl[[time_end.x]], join_tbl[[time_end.y]]),
+      .x_y_start = pmax(.[[time_start.x]], .[[time_start.y]]),
+      .x_y_end = pmin(.[[time_end.x]], .[[time_end.y]]),
       .x_y_dur = .x_y_end - .x_y_start,
-      .x_dur = join_tbl[[time_end.x]] - join_tbl[[time_start.x]],
-      .y_dur = join_tbl[[time_end.y]] - join_tbl[[time_start.y]],
+      .x_dur = .[[time_end.x]] - .[[time_start.x]],
+      .y_dur = .[[time_end.y]] - .[[time_start.y]],
       .x_y_dur = ifelse(is.na(.x_y_dur), 0, .x_y_dur)
     ) %>%
+    dplyr::mutate_at(dplyr::vars('.x_y_dur', '.x_dur', '.y_dur', '.x_y_dur'), tidyr::replace_na, 0)
+
+  x_tbl <-
+    join_tbl %>%
+    dplyr::select({{include.x}}, .x_dur) %>%
+    dplyr::distinct() %>%
     dplyr::group_by_at(dplyr::vars(!!!{{summary_vars}})) %>%
-    dplyr::summarise(X_Y = sum(.x_y_dur),
-                     X = unique(.x_dur), Y = unique(.y_dur),
-                     X_notY = X - X_Y, notX_Y = Y - X_Y) %>%
-    dplyr::mutate_at(dplyr::vars('X', 'Y', 'X_Y', 'X_notY', 'notX_Y'), tidyr::replace_na, 0) %>%
+    dplyr::summarise(X = sum(.x_dur))%>%
     dplyr::ungroup()
+
+  y_tbl <-
+    join_tbl %>%
+    dplyr::select({{include.y}}, .y_dur) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by_at(dplyr::vars(!!!{{summary_vars}})) %>%
+    dplyr::summarise(Y = sum(.y_dur)) %>%
+    dplyr::ungroup()
+
+  x_y_tbl <-
+    join_tbl %>%
+    dplyr::group_by_at(dplyr::vars(!!!{{summary_vars}})) %>%
+    dplyr::summarise(X_Y = sum(.x_y_dur))%>%
+    dplyr::ungroup()
+
+  summary_tbl <-
+    x_tbl %>%
+    dplyr::left_join(y_tbl, by = summary_vars) %>%
+    dplyr::left_join(x_y_tbl, by = summary_vars) %>%
+    dplyr::mutate(X_notY = X - X_Y, notX_Y = Y - X_Y)
+
+  # browser()
+  # not_is.na <- function(x) !is.na(x)
+  # summary_tbl <-
+  #   join_tbl %>%
+  #   dplyr::mutate(
+  #     .x_y_start = pmax(join_tbl[[time_start.x]], join_tbl[[time_start.y]]),
+  #     .x_y_end = pmin(join_tbl[[time_end.x]], join_tbl[[time_end.y]]),
+  #     .x_y_dur = .x_y_end - .x_y_start,
+  #     .x_dur = join_tbl[[time_end.x]] - join_tbl[[time_start.x]],
+  #     .y_dur = join_tbl[[time_end.y]] - join_tbl[[time_start.y]],
+  #     .x_y_dur = ifelse(is.na(.x_y_dur), 0, .x_y_dur)
+  #   ) %>%
+  #   dplyr::group_by_at(dplyr::vars(!!!{{summary_vars}})) %>%
+  #   dplyr::summarise(X_Y = sum(.x_y_dur),
+  #                    X = list(unique(na.omit(.x_dur))), Y = list(unique(na.omit(.y_dur))),
+  #                    X_notY = lapply(X, `-`, X_Y), notX_Y = lapply(Y, `-`, X_Y)) %>%
+  #   dplyr::mutate_at(dplyr::vars('X', 'Y', 'X_Y', 'X_notY', 'notX_Y'), tidyr::replace_na, 0) %>%
+  #   dplyr::ungroup()
 
   class(summary_tbl) <- c('overlap_summary', class(summary_tbl))
   attr(summary_tbl, 'footer') <-

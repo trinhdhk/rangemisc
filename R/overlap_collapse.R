@@ -9,18 +9,22 @@ overlap_collapse <- function(x,...)
 
 #' @rdname overlap_collapse
 #' @param .data a data.frame, tbl, or grouped_df. If grouped, collapsing will be performed by group.
-#' @param range_cols unquoted column names that specify the beginning and stopping of the range
+#' @param range_cols unquoted column names that specify the beginning and stopping of the range, wrapped in dplyr::vars()
 #' @param method a string, either:
 #'
 #' - outer: the collapsed range is the widest one
+#'
 #' - inner: the collapsed range is the closest one
+#'
 #' - left: the collapsed range is skew to the left
+#'
 #' - right: the collapsed range is skew to the right
 #'
 #' @return For data.frame method: a tbl or a grouped_df
 #' @export
 overlap_collapse.data.frame <- function(.data, range_cols,  method = c('outer', 'inner', 'left', 'right'))
 {
+  # browser()
   original_class <- class(.data)
   group_names <- dplyr::group_vars(.data)
   range_cols <- lapply(range_cols, rlang::quo_get_expr)
@@ -31,7 +35,7 @@ overlap_collapse.data.frame <- function(.data, range_cols,  method = c('outer', 
     rlang::quo_get_expr(
       rlang::quo(
         .data[,
-              overlap_collapse(!!range_cols[[1]], !!range_cols[[2]]),
+              overlap_collapse(!!range_cols[[1]], !!range_cols[[2]], method = !!{{method}}),
               by = group_names])
     )
   .data <- rlang::eval_tidy(expr)
@@ -43,8 +47,7 @@ overlap_collapse.data.frame <- function(.data, range_cols,  method = c('outer', 
 }
 
 #' @rdname overlap_collapse
-#' @param start start of a period
-#' @param end end of a period
+#' @param start,end start and end of a period
 #' @return For Date/POSIXct/POSIXlt method: a vector of the same class
 #' @export
 overlap_collapse.Date <- function(start, end, method = c('outer', 'inner', 'left', 'right')){
@@ -77,8 +80,7 @@ overlap_collapse.POSIXt <- function(start, end, method = c('outer', 'inner', 'le
 
 
 #' @rdname overlap_collapse
-#' @param x a numeric vector specifying the one border of a range
-#' @param y a numeric vector specifying the other border of a range
+#' @param x,y a numeric vector specifying the two borders of each range
 #' @return For numeric method: a numeric vector
 #' @export
 overlap_collapse.numeric <- function(x, y, method = c('outer', 'inner', 'left', 'right')){
@@ -110,11 +112,11 @@ overlap_collapse.numeric <- function(x, y, method = c('outer', 'inner', 'left', 
       range_k <- c(ranges$start[k], ranges$ends[k])
       if (is.overlaps(range_i, range_k)){
         new_range <- ._range_outer(c(range_k[1], range_i[1]), c(range_k[2], range_i[2]))
-        ranges$starts[k] <- new_range[1]
-        ranges$ends[k] <- new_range[2]
+        ranges$starts[k] <- new_range[[1]]
+        ranges$ends[k] <- new_range[[2]]
       } else {
-        ranges$starts <- c(ranges$starts, start[i])
-        ranges$ends <- c(ranges$ends, end[i])
+        ranges$starts <- c(ranges$starts, start[[i]])
+        ranges$ends <- c(ranges$ends, end[[i]])
         k <- k + 1
       }
     }
@@ -141,7 +143,7 @@ overlap_collapse.numeric <- function(x, y, method = c('outer', 'inner', 'left', 
     out
   })
 
-  ranges <- list(starts = ranges['starts',], ends = ranges['ends',])
+  ranges <- list(starts = unname(ranges['starts',]), ends = unname(ranges['ends',]))
   # names(ranges) <- c(x.name, y.name)
   ranges
 }
@@ -168,9 +170,10 @@ overlap_collapse.default <- function(x, y, method = c('outer', 'inner', 'left', 
 }
 
 ._range_inner <- function(x, y){
-  z <- sort(c(x, y))
-  if (length(z) %% 2) return(z[length(z) %/% 2 + 1])
-  c(z[length(z)/2], z[length(z)/2 + 1])
+  x <- sort(x)
+  y <- sort(y)
+  if (max(x) > min(y)) return(c(as(NA, class(max(x))), as(NA, class(min(y)))))
+  c(max(x), min(y))
 }
 
 ._range_outer <- function(x, y){
