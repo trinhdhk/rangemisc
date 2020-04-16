@@ -19,8 +19,8 @@ Description: Provide helpers to join overlapped ranges/interval, summary of 2 ev
 License: The MIT License (MIT)
 Encoding: UTF-8
 LazyData: true
-Imports:
-  C306
+Remotes:
+  oucru-biostats/C306
 Depends:
   data.table,
   dplyr
