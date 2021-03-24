@@ -1,4 +1,4 @@
-load#' Overlap join of 2 data frames
+#' Overlap join of 2 data frames
 #' @description This function is a wrapper of data.table's foverlaps, following the dplyr's _join grammar.
 #' @param x,y data.frames
 #' @param by,by.x,by.y
