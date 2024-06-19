@@ -42,7 +42,8 @@ overlap_collapse.data.frame <- function(.data, range_cols,  method = c('outer', 
 
   names(.data)[names(.data) %in% c('starts', 'ends')] <- range_names
   if (length(group_names)) return(.data %>% group_by_at(vars(!!!{{group_names}})))
-  .data <- as(.data, original_class)
+  # .data <- as(.data, original_class)
+  class(.data) <- original_class
   .data
 }
 
